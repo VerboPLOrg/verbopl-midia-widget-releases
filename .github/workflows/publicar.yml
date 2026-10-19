@@ -53,10 +53,9 @@ jobs:
 
       - run: npm ci
 
-      # EP_DRAFT=false: publica o release direto (não como rascunho), senão as
-      # máquinas não enxergam a versão nova.
+      # Publica o release direto (releaseType: "release" no package.json do
+      # código-fonte), não como rascunho, senão as máquinas não enxergam a versão.
       - name: Gera o instalador e publica
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EP_DRAFT: 'false'
         run: npx electron-builder --win --publish always
