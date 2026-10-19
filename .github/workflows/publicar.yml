@@ -1,0 +1,62 @@
+# Publica uma versão do Chamada Verbo PL neste repositório de distribuição.
+# Roda aqui (repositório público) porque o Actions é gratuito em repositório
+# público. O código-fonte continua privado: o fluxo o baixa só durante o build.
+#
+# Disparo manual: Actions → "Publicar versão" → Run workflow (funciona pelo celular).
+#
+# Requer o segredo TOKEN_CLAUDE_MOBILE neste repositório: token fine-grained com
+# Contents: Read em VerboPLOrg/verbopl-midia-widget (para baixar o código).
+# A publicação do release usa o GITHUB_TOKEN do próprio fluxo.
+name: Publicar versão
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: 'Branch ou tag do código-fonte a publicar'
+        required: true
+        default: main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publicar
+  cancel-in-progress: false
+
+jobs:
+  publicar:
+    runs-on: windows-latest
+    steps:
+      - name: Confere o segredo do token
+        shell: bash
+        env:
+          FONTE_TOKEN: ${{ secrets.TOKEN_CLAUDE_MOBILE }}
+        run: |
+          if [ -z "$FONTE_TOKEN" ]; then
+            echo "::error::Segredo TOKEN_CLAUDE_MOBILE não configurado neste repositório (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+
+      - name: Baixa o código-fonte (privado)
+        uses: actions/checkout@v4
+        with:
+          repository: VerboPLOrg/verbopl-midia-widget
+          ref: ${{ inputs.ref }}
+          token: ${{ secrets.TOKEN_CLAUDE_MOBILE }}
+          persist-credentials: false
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      # EP_DRAFT=false: publica o release direto (não como rascunho), senão as
+      # máquinas não enxergam a versão nova.
+      - name: Gera o instalador e publica
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EP_DRAFT: 'false'
+        run: npx electron-builder --win --publish always
